@@ -1,0 +1,6 @@
+{
+  "name": "LocMerge - Flego",
+  "description": "Špičkový lokalizačný nástroj pre herných vývojárov od Flega. Efektívne spájanie a rozdeľovanie tisícov súborov s podporou kódovania UTF-8, UTF-16 a CP1250.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
