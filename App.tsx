@@ -20,8 +20,8 @@ function App() {
         
         {/* Header */}
         <header className="mb-8 flex items-center gap-4 pb-6 border-b border-slate-800">
-          <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-3 rounded-xl shadow-lg shadow-indigo-500/20">
-            <Layers className="w-8 h-8 text-white" />
+          <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-3 rounded-xl shadow-lg shadow-indigo-500/20 group hover:shadow-indigo-500/40 hover:-translate-y-1 hover:scale-105 transition-all duration-300">
+            <Layers className="w-8 h-8 text-white group-hover:rotate-6 transition-all duration-300" />
           </div>
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-white">LocMerge</h1>

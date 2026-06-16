@@ -32,7 +32,7 @@ export const ConsoleLog: React.FC<ConsoleLogProps> = ({ logs }) => {
             <span className={`${
               log.type === 'error' ? 'text-red-400' : 
               log.type === 'success' ? 'text-green-400' : 'text-slate-300'
-            }`}>
+            } whitespace-pre-wrap break-words inline-block`}>
               {log.message}
             </span>
           </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Scissors, FileJson, FileText, Loader2, Download, CheckCircle2, RefreshCw, Settings2, ArrowRight } from 'lucide-react';
+import { Scissors, FileJson, FileText, Loader2, Download, CheckCircle2, RefreshCw, Settings2, ArrowRight, AlertTriangle } from 'lucide-react';
 import { splitFiles, readFileContent, formatFileSize } from '../utils/locEngine';
 import { LogEntry, ProcessStatus, FileMap, SupportedEncoding } from '../types';
 
@@ -19,6 +19,7 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({ addLog }) => {
   // Separate Input (Reading Master) and Output (Writing files) encoding
   const [inputEncoding, setInputEncoding] = useState<SupportedEncoding>('UTF-8');
   const [outputEncoding, setOutputEncoding] = useState<SupportedEncoding>('UTF-8');
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleSplit = async () => {
     if (!mapFile || !masterFile) return;
@@ -26,6 +27,7 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({ addLog }) => {
     setStatus(ProcessStatus.PROCESSING);
     setProgress(0);
     setCurrentFile('');
+    setValidationError(null);
     addLog(`Spúšťam proces: Vstup ${inputEncoding} -> Výstup ${outputEncoding}...`, 'info');
 
     try {
@@ -73,8 +75,15 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({ addLog }) => {
 
     } catch (error: any) {
       console.error(error);
-      addLog(`Rozdelenie zlyhalo: ${error.message}`, 'error');
-      setStatus(ProcessStatus.ERROR);
+      const msg = error.message;
+      if (msg.startsWith('VALIDATION_ERROR:')) {
+         setValidationError(msg.replace('VALIDATION_ERROR:', ''));
+         setStatus(ProcessStatus.ERROR);
+         addLog(`Validácia riadkov zlyhala! Skontrolujte chybové hlásenie.`, 'error');
+      } else {
+         addLog(`Rozdelenie zlyhalo: ${msg}`, 'error');
+         setStatus(ProcessStatus.ERROR);
+      }
     }
   };
 
@@ -144,7 +153,7 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({ addLog }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Map Input */}
           <div className="space-y-2">
-             <label className="text-sm font-semibold text-slate-300">1. Nahrať map.json</label>
+             <label className="text-sm font-semibold text-slate-300">1. Nahrať map.json (s CRC32)</label>
              <div className={`
                border-2 border-dashed rounded-lg flex flex-col items-center text-center transition-all relative overflow-hidden
                ${mapFile 
@@ -272,6 +281,16 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({ addLog }) => {
       </div>
 
       {/* Result */}
+      {status === ProcessStatus.ERROR && validationError && (
+        <div className="bg-red-900/40 border border-red-500/50 p-6 rounded-xl flex items-start gap-4 animate-in slide-in-from-bottom-4 duration-500">
+          <AlertTriangle className="w-8 h-8 text-red-500 shrink-0 mt-1" />
+          <div className="text-red-200 text-sm whitespace-pre-wrap">
+            <p className="font-bold text-red-100 text-lg mb-2">Chyba integrity riadkov</p>
+            {validationError}
+          </div>
+        </div>
+      )}
+
       {status === ProcessStatus.COMPLETED && downloadUrl && (
         <div className="animate-in slide-in-from-bottom-4 duration-500">
            <a 

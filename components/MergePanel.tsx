@@ -243,7 +243,7 @@ export const MergePanel: React.FC<MergePanelProps> = ({ addLog }) => {
               </div>
               <div>
                 <p className="font-bold text-amber-100">map.json</p>
-                <p className="text-xs text-amber-400/70">Potrebné pre rekonštrukciu</p>
+                <p className="text-xs text-amber-400/70">Obsahuje bezpečnostné CRC32 hashe a riadkovanie</p>
               </div>
             </div>
             <Download className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />

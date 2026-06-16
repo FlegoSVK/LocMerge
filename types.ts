@@ -1,6 +1,8 @@
 export interface FileMapEntry {
   filename: string;
   lineCount: number;
+  originalHash?: string;
+  emptyLineIndices?: number[];
 }
 
 export type FileMap = FileMapEntry[];

@@ -1,6 +1,29 @@
 import JSZip from 'jszip';
 import { FileMap, FileMapEntry, SupportedEncoding } from '../types';
 
+const makeCRCTable = () => {
+  let c;
+  let crcTable: number[] = [];
+  for (let n = 0; n < 256; n++) {
+    c = n;
+    for (let k = 0; k < 8; k++) {
+      c = ((c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1));
+    }
+    crcTable[n] = c;
+  }
+  return crcTable;
+};
+
+const crcTable = makeCRCTable();
+
+export const crcStr = (str: string) => {
+  let crc = 0 ^ (-1);
+  for (let i = 0; i < str.length; i++) {
+    crc = (crc >>> 8) ^ crcTable[(crc ^ str.charCodeAt(i)) & 0xFF];
+  }
+  return ((crc ^ (-1)) >>> 0).toString(16).padStart(8, '0');
+};
+
 // Windows-1250 (Central European) Lookup Table for characters > 127
 const CP1250_MAP: Record<string, number> = {
   '€': 0x80, '‚': 0x82, '„': 0x84, '…': 0x85, '†': 0x86, '‡': 0x87,
@@ -138,10 +161,15 @@ export const mergeFiles = async (
       
       // We normalize lines for line counting, though JSON stores the string as is
       const lines = splitToLines(cleanContent);
+      const emptyLineIndices = lines
+        .map((l, idx) => (l.trim() === '' ? idx : -1))
+        .filter(idx => idx !== -1);
 
       fileMap.push({
         filename: file.name,
-        lineCount: lines.length
+        lineCount: lines.length,
+        originalHash: crcStr(cleanContent),
+        emptyLineIndices
       });
 
       masterJson[file.name] = cleanContent;
@@ -172,10 +200,15 @@ export const mergeFiles = async (
     const cleanContent = rawContent.replace(/^\uFEFF/, '');
     
     const lines = splitToLines(cleanContent);
+    const emptyLineIndices = lines
+      .map((l, idx) => (l.trim() === '' ? idx : -1))
+      .filter(idx => idx !== -1);
     
     fileMap.push({
       filename: file.name,
-      lineCount: lines.length
+      lineCount: lines.length,
+      originalHash: crcStr(cleanContent),
+      emptyLineIndices
     });
 
     masterLines.push(...lines);
@@ -230,9 +263,31 @@ export const splitFiles = async (
     allLines = splitToLines(cleanMaster);
     
     const totalExpectedLines = fileMap.reduce((acc, entry) => acc + entry.lineCount, 0);
-    // Allow small deviation
-    if (Math.abs(allLines.length - totalExpectedLines) > 1) {
-      console.warn(`Mismatch: Actual ${allLines.length} vs Expected ${totalExpectedLines}`);
+    // Strict CRC / Line validation with empty line heuristic
+    if (allLines.length !== totalExpectedLines) {
+      let probableFile = "Neznámy súbor (nedostatok záchytných bodov - prázdnych riadkov)";
+      let currentExpectedOffset = 0;
+      
+      for (const entry of fileMap) {
+        if (entry.emptyLineIndices && entry.emptyLineIndices.length > 0) {
+           let matchesOrigin = true;
+           for (const emptyIdx of entry.emptyLineIndices) {
+              const checkIdx = currentExpectedOffset + emptyIdx;
+              if (checkIdx >= allLines.length || allLines[checkIdx].trim() !== '') {
+                 matchesOrigin = false;
+                 break;
+              }
+           }
+           if (!matchesOrigin) {
+              probableFile = entry.filename;
+              break; 
+           }
+        }
+        currentExpectedOffset += entry.lineCount;
+      }
+      
+      const action = allLines.length < totalExpectedLines ? 'zmazal' : 'pridal';
+      throw new Error(`VALIDATION_ERROR:Očakávalo sa ${totalExpectedLines} riadkov podľa map.json, ale preložený dokument má ${allLines.length} riadkov.\n\nS najväčšou pravdepodobnosťou prekladateľ omylom ${action} riadok/riadky v súbore alebo tesne pri súbore:\n👉 ${probableFile}\n\nOpravte Master súbor pred rozdelením.`);
     }
   }
 
