@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { FileUp, FileJson, FileType, Loader2, Download, AlertCircle, RefreshCw, FileText, Settings2 } from 'lucide-react';
 import { mergeFiles, formatFileSize } from '../utils/locEngine';
-import { LogEntry, ProcessStatus, SupportedEncoding } from '../types';
+import { LogEntry, ProcessStatus, SupportedEncoding, LineEndingStyle } from '../types';
 
 interface MergePanelProps {
   addLog: (msg: string, type: LogEntry['type']) => void;
@@ -14,6 +14,7 @@ export const MergePanel: React.FC<MergePanelProps> = ({ addLog }) => {
   const [currentFile, setCurrentFile] = useState<string>('');
   const [downloadUrls, setDownloadUrls] = useState<{ master: string; map: string } | null>(null);
   const [encoding, setEncoding] = useState<SupportedEncoding>('UTF-8');
+  const [lineEnding, setLineEnding] = useState<LineEndingStyle>('auto');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -34,7 +35,7 @@ export const MergePanel: React.FC<MergePanelProps> = ({ addLog }) => {
     if (files.length === 0) return;
 
     setStatus(ProcessStatus.PROCESSING);
-    addLog(`Spúšťam proces zlučovania s kódovaním ${encoding}...`, 'info');
+    addLog(`Spúšťam proces zlučovania s kódovaním ${encoding} a koncom riadkov: ${lineEnding}...`, 'info');
     setProgress(0);
     setCurrentFile('');
 
@@ -47,7 +48,7 @@ export const MergePanel: React.FC<MergePanelProps> = ({ addLog }) => {
           setProgress(Math.round((current / total) * 100));
           setCurrentFile(filename);
         }
-      });
+      }, lineEnding);
 
       const mapBlob = new Blob([JSON.stringify(fileMap, null, 2)], { type: 'application/json' });
 
@@ -89,25 +90,52 @@ export const MergePanel: React.FC<MergePanelProps> = ({ addLog }) => {
           </div>
         </div>
 
-        {/* Encoding Selector */}
-        <div className="mb-6 bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex items-center gap-4">
-          <div className="p-2 bg-indigo-500/20 rounded-lg text-indigo-400">
-            <Settings2 className="w-5 h-5" />
+        {/* Settings Selector */}
+        <div className="mb-6 bg-slate-900/50 p-4 rounded-lg border border-slate-700 space-y-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            
+            {/* Encoding Selector */}
+            <div className="flex-1 flex gap-4 items-start">
+              <div className="p-2 bg-indigo-500/20 rounded-lg text-indigo-400 shrink-0">
+                <Settings2 className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <label className="text-sm font-semibold text-slate-300 block mb-1">Kódovanie súboru Master a výstupu</label>
+                <p className="text-xs text-slate-500 mb-2">Vyberte kódovanie pre výstupný Master súbor.</p>
+                <select 
+                  value={encoding}
+                  onChange={(e) => setEncoding(e.target.value as SupportedEncoding)}
+                  className="bg-slate-800 border border-slate-600 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5"
+                >
+                  <option value="UTF-8">UTF-8</option>
+                  <option value="windows-1250">Windows-1250</option>
+                  <option value="UTF-16LE">UTF-16 LE s BOM</option>
+                  <option value="JSON">JSON (Štruktúrovaný)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Line Endings Selector */}
+            <div className="flex-1 flex gap-4 items-start border-t md:border-t-0 md:border-l border-slate-700 pt-4 md:pt-0 md:pl-4">
+              <div className="p-2 bg-emerald-500/20 rounded-lg text-emerald-400 shrink-0">
+                <FileType className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <label className="text-sm font-semibold text-slate-300 block mb-1">Konce riadkov (Line Endings)</label>
+                <p className="text-xs text-slate-500 mb-2">Formát zalomenia riadku v textovom výstupe.</p>
+                <select 
+                  value={lineEnding}
+                  onChange={(e) => setLineEnding(e.target.value as LineEndingStyle)}
+                  className="bg-slate-800 border border-slate-600 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5"
+                >
+                  <option value="auto">Auto (Závisí od kódovania)</option>
+                  <option value="CRLF">Windows (CRLF - \r\n)</option>
+                  <option value="LF">Unix / Linux (LF - \n)</option>
+                </select>
+              </div>
+            </div>
+
           </div>
-          <div className="flex-1">
-            <label className="text-sm font-semibold text-slate-300 block mb-1">Kódovanie súboru Master a výstupu</label>
-            <p className="text-xs text-slate-500">Vyberte kódovanie pre výstupný Master súbor. Vstupné súbory by mali byť v rovnakom formáte.</p>
-          </div>
-          <select 
-            value={encoding}
-            onChange={(e) => setEncoding(e.target.value as SupportedEncoding)}
-            className="bg-slate-800 border border-slate-600 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 min-w-[150px]"
-          >
-            <option value="UTF-8">UTF-8</option>
-            <option value="windows-1250">Windows-1250</option>
-            <option value="UTF-16LE">UTF-16 LE s BOM</option>
-            <option value="JSON">JSON (Štruktúrovaný)</option>
-          </select>
         </div>
 
         {/* File Selection Area */}

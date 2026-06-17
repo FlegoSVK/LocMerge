@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Scissors, FileJson, FileText, Loader2, Download, CheckCircle2, RefreshCw, Settings2, ArrowRight, AlertTriangle } from 'lucide-react';
 import { splitFiles, readFileContent, formatFileSize } from '../utils/locEngine';
-import { LogEntry, ProcessStatus, FileMap, SupportedEncoding } from '../types';
+import { LogEntry, ProcessStatus, FileMap, SupportedEncoding, LineEndingStyle } from '../types';
 
 interface SplitPanelProps {
   addLog: (msg: string, type: LogEntry['type']) => void;
@@ -19,6 +19,7 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({ addLog }) => {
   // Separate Input (Reading Master) and Output (Writing files) encoding
   const [inputEncoding, setInputEncoding] = useState<SupportedEncoding>('UTF-8');
   const [outputEncoding, setOutputEncoding] = useState<SupportedEncoding>('UTF-8');
+  const [lineEnding, setLineEnding] = useState<LineEndingStyle>('auto');
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleSplit = async () => {
@@ -28,7 +29,7 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({ addLog }) => {
     setProgress(0);
     setCurrentFile('');
     setValidationError(null);
-    addLog(`Spúšťam proces: Vstup ${inputEncoding} -> Výstup ${outputEncoding}...`, 'info');
+    addLog(`Spúšťam proces: Vstup ${inputEncoding} -> Výstup ${outputEncoding} (konce riadkov: ${lineEnding})...`, 'info');
 
     try {
       // 1. Read Map
@@ -52,7 +53,7 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({ addLog }) => {
            setProgress(Math.round((current / total) * 100));
            setCurrentFile(filename);
          }
-      });
+      }, lineEnding);
 
       let url: string;
       if (result instanceof Blob) {
@@ -106,7 +107,7 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({ addLog }) => {
         <div className="mb-6 bg-slate-900/50 p-4 rounded-lg border border-slate-700">
           <div className="flex items-center gap-2 mb-3 text-pink-400">
             <Settings2 className="w-5 h-5" />
-            <h3 className="text-sm font-bold uppercase tracking-wide">Nastavenia kódovania (Konverzia)</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wide">Nastavenia kódovania & formátu (Konverzia)</h3>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-[1fr,auto,1fr] gap-4 items-center">
@@ -147,6 +148,25 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({ addLog }) => {
               <p className="text-[10px] text-pink-400/70 mt-1">Kódovanie všetkých súborov v ZIPe alebo JSON formát.</p>
             </div>
 
+          </div>
+
+          {/* Line Endings Dropdown */}
+          <div className="border-t border-slate-800 mt-4 pt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Konce riadkov (Line Endings) pre export</label>
+              <p className="text-[10px] text-slate-500">
+                Formát zalomenia riadku v rekonštruovaných lokalizačných súboroch.
+              </p>
+            </div>
+            <select 
+              value={lineEnding}
+              onChange={(e) => setLineEnding(e.target.value as LineEndingStyle)}
+              className="bg-slate-800 border border-slate-600 text-white text-sm rounded-lg focus:ring-pink-500 focus:border-pink-500 block sm:w-[250px] w-full p-2.5"
+            >
+              <option value="auto">Auto (Závisí od kódovania)</option>
+              <option value="CRLF">Windows (CRLF - \r\n)</option>
+              <option value="LF">Unix / Linux (LF - \n)</option>
+            </select>
           </div>
         </div>
 

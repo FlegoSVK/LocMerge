@@ -35,7 +35,13 @@ Prekladatelia môžu pri práci omylom vymazať alebo pridať riadok v hlavnom s
 * **UTF-16LE s BOM** (Špecifické kódovanie pre niektoré herné systémy)
 * **JSON** (Asociatívne polia pre moderne štruktúrovanú lokalizáciu)
 
-### 💻 4. Client-side rýchlosť a bezpečnosť
+### 🔧 4. Plná podpora zalomenia riadkov (Line Endings)
+Umožňuje explicitne nastaviť formát koncov riadkov pre exportovaný Master aj finálne zrekonštruované súbory:
+* **Windows (CRLF - `\r\n`)** - dôležité pre správne fungovanie prekladov v herných enginoch pod Windowsom.
+* **Unix/Linux (LF - `\n`)** - priemyselný štandard pre moderné systémy.
+* **Auto** - automaticky určuje typ podľa vybraného kódovania.
+
+### 💻 5. Client-side rýchlosť a bezpečnosť
 * Celé spracovanie prebieha výhradne vo vašom lokálnom prehliadači prostredníctvom moderného JS enginu.
 * Žiadne vaše herné texty ani preklady sa neposielajú na externé servery.
 * Vynikajúca odozva (stovky súborov spracuje za zlomok sekundy).

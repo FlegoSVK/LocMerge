@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import { FileMap, FileMapEntry, SupportedEncoding } from '../types';
+import { FileMap, FileMapEntry, SupportedEncoding, LineEndingStyle } from '../types';
 
 const makeCRCTable = () => {
   let c;
@@ -141,7 +141,8 @@ export const formatFileSize = (bytes: number): string => {
 export const mergeFiles = async (
   files: File[], 
   encoding: SupportedEncoding,
-  onProgress: (current: number, total: number, filename: string) => void
+  onProgress: (current: number, total: number, filename: string) => void,
+  lineEnding: LineEndingStyle = 'auto'
 ): Promise<{ masterBlob: Blob; fileMap: FileMap }> => {
   
   // Handling JSON output structure (Key-Value pair file)
@@ -157,7 +158,13 @@ export const mergeFiles = async (
       // Even if output is JSON, we read input files as UTF-8 by default unless specified otherwise
       // Here we assume input files are text files being merged into a JSON structure
       const rawContent = await readFileContent(file, 'UTF-8');
-      const cleanContent = rawContent.replace(/^\uFEFF/, '');
+      let cleanContent = rawContent.replace(/^\uFEFF/, '');
+      
+      if (lineEnding === 'CRLF') {
+        cleanContent = cleanContent.replace(/\r?\n/g, '\r\n');
+      } else if (lineEnding === 'LF') {
+        cleanContent = cleanContent.replace(/\r?\n/g, '\n');
+      }
       
       // We normalize lines for line counting, though JSON stores the string as is
       const lines = splitToLines(cleanContent);
@@ -197,7 +204,13 @@ export const mergeFiles = async (
     const rawContent = await readFileContent(file, encoding === 'windows-1250' ? 'windows-1250' : 'UTF-8');
     
     // Remove BOM if present (handles UTF-8 and UTF-16 BOMs)
-    const cleanContent = rawContent.replace(/^\uFEFF/, '');
+    let cleanContent = rawContent.replace(/^\uFEFF/, '');
+    
+    if (lineEnding === 'CRLF') {
+      cleanContent = cleanContent.replace(/\r?\n/g, '\r\n');
+    } else if (lineEnding === 'LF') {
+      cleanContent = cleanContent.replace(/\r?\n/g, '\n');
+    }
     
     const lines = splitToLines(cleanContent);
     const emptyLineIndices = lines
@@ -215,7 +228,14 @@ export const mergeFiles = async (
   }
 
   // Determine newline char. Windows/UTF-16LE usually prefers CRLF
-  const newline = (encoding === 'windows-1250' || encoding === 'UTF-16LE') ? '\r\n' : '\n';
+  let newline = '\n';
+  if (lineEnding === 'CRLF') {
+    newline = '\r\n';
+  } else if (lineEnding === 'LF') {
+    newline = '\n';
+  } else {
+    newline = (encoding === 'windows-1250' || encoding === 'UTF-16LE') ? '\r\n' : '\n';
+  }
   const masterContent = masterLines.join(newline);
 
   // Encode back to binary
@@ -240,7 +260,8 @@ export const splitFiles = async (
   fileMap: FileMap,
   inputEncoding: SupportedEncoding,
   outputEncoding: SupportedEncoding,
-  onProgress: (current: number, total: number, filename: string) => void
+  onProgress: (current: number, total: number, filename: string) => void,
+  lineEnding: LineEndingStyle = 'auto'
 ): Promise<any> => {
   
   let parsedJsonData: Record<string, string> | null = null;
@@ -295,7 +316,7 @@ export const splitFiles = async (
   // Handle JSON Output mode (Single file output)
   if (outputEncoding === 'JSON') {
     const outputMap: Record<string, string> = {};
-    const newline = '\n'; 
+    const newline = lineEnding === 'CRLF' ? '\r\n' : (lineEnding === 'LF' ? '\n' : '\n'); 
     
     for (let i = 0; i < fileMap.length; i++) {
       const entry = fileMap[i];
@@ -313,6 +334,12 @@ export const splitFiles = async (
         currentLineIndex += entry.lineCount;
       }
 
+      if (lineEnding === 'CRLF') {
+        fileContentString = fileContentString.replace(/\r?\n/g, '\r\n');
+      } else if (lineEnding === 'LF') {
+        fileContentString = fileContentString.replace(/\r?\n/g, '\n');
+      }
+
       outputMap[entry.filename] = fileContentString;
     }
     
@@ -322,7 +349,14 @@ export const splitFiles = async (
   // Standard ZIP Output mode
   const zip = new JSZip();
   // Newline for output depends on Output Encoding preferences
-  const newline = (outputEncoding === 'windows-1250' || outputEncoding === 'UTF-16LE') ? '\r\n' : '\n';
+  let newline = '\n';
+  if (lineEnding === 'CRLF') {
+    newline = '\r\n';
+  } else if (lineEnding === 'LF') {
+    newline = '\n';
+  } else {
+    newline = (outputEncoding === 'windows-1250' || outputEncoding === 'UTF-16LE') ? '\r\n' : '\n';
+  }
 
   for (let i = 0; i < fileMap.length; i++) {
     const entry = fileMap[i];
@@ -332,13 +366,13 @@ export const splitFiles = async (
 
     if (parsedJsonData) {
        // Input was JSON
-       // Note: Encoding conversion happens at the `encodeText` step below
        fileString = parsedJsonData[entry.filename] || "";
        
-       // If the JSON content lacks specific newlines but the target encoding expects them,
-       // we might need normalization, but usually we respect the source string.
-       // However, if output is windows, we might want to ensure CRLF if the string only has LF.
-       if (outputEncoding === 'windows-1250' || outputEncoding === 'UTF-16LE') {
+       if (lineEnding === 'CRLF') {
+         fileString = fileString.replace(/\r?\n/g, '\r\n');
+       } else if (lineEnding === 'LF') {
+         fileString = fileString.replace(/\r?\n/g, '\n');
+       } else if (outputEncoding === 'windows-1250' || outputEncoding === 'UTF-16LE') {
          fileString = fileString.replace(/\r?\n/g, '\r\n');
        }
     } else {

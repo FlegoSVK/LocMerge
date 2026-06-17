@@ -21,3 +21,5 @@ export interface LogEntry {
 }
 
 export type SupportedEncoding = 'UTF-8' | 'windows-1250' | 'UTF-16LE' | 'JSON';
+
+export type LineEndingStyle = 'LF' | 'CRLF' | 'auto';
