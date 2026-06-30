@@ -17,6 +17,7 @@ export const MergePanel: React.FC<MergePanelProps> = ({ addLog }) => {
   const [lineEnding, setLineEnding] = useState<LineEndingStyle>('auto');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   const totalSize = useMemo(() => {
     return files.reduce((acc, file) => acc + file.size, 0);
@@ -24,11 +25,31 @@ export const MergePanel: React.FC<MergePanelProps> = ({ addLog }) => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFiles(Array.from(e.target.files));
-      setStatus(ProcessStatus.IDLE);
-      setDownloadUrls(null);
-      addLog(`Vybraných ${e.target.files.length} súborov na zlúčenie.`, 'info');
+      const selected = Array.from(e.target.files);
+      const validFiles = selected.filter(f => f.name.toLowerCase().endsWith('.txt') || f.name.toLowerCase().endsWith('.json'));
+      
+      if (validFiles.length > 0) {
+        setFiles(prev => {
+          const existingPaths = new Set(prev.map(p => p.webkitRelativePath || p.name));
+          const newFiles = validFiles.filter(f => !existingPaths.has(f.webkitRelativePath || f.name));
+          return [...prev, ...newFiles];
+        });
+        setStatus(ProcessStatus.IDLE);
+        setDownloadUrls(null);
+        addLog(`Pridaných ${validFiles.length} platných súborov.`, 'info');
+      } else {
+        addLog(`Neboli nájdené žiadne .txt alebo .json súbory.`, 'error');
+      }
+      e.target.value = '';
     }
+  };
+
+  const clearFiles = () => {
+    setFiles([]);
+    setStatus(ProcessStatus.IDLE);
+    setDownloadUrls(null);
+    setProgress(0);
+    setCurrentFile('');
   };
 
   const handleMerge = async () => {
@@ -139,15 +160,12 @@ export const MergePanel: React.FC<MergePanelProps> = ({ addLog }) => {
         </div>
 
         {/* File Selection Area */}
-        <div 
-          onClick={() => fileInputRef.current?.click()}
-          className={`
-            border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all
-            ${files.length > 0 
-              ? 'border-indigo-500/50 bg-indigo-500/5 hover:bg-indigo-500/10' 
-              : 'border-slate-600 hover:border-slate-500 hover:bg-slate-700/50 p-10'}
-          `}
-        >
+        <div className={`
+          border-2 border-dashed rounded-lg p-6 transition-all
+          ${files.length > 0 
+            ? 'border-indigo-500/50 bg-indigo-500/5' 
+            : 'border-slate-600 bg-slate-800 p-10'}
+        `}>
           <input 
             type="file" 
             ref={fileInputRef}
@@ -156,13 +174,35 @@ export const MergePanel: React.FC<MergePanelProps> = ({ addLog }) => {
             accept=".txt,.json" 
             className="hidden" 
           />
+          <input 
+            type="file" 
+            ref={folderInputRef}
+            onChange={handleFileChange}
+            multiple 
+            {...{webkitdirectory: "", directory: ""}}
+            className="hidden" 
+          />
           
           {files.length === 0 ? (
-            <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-6">
                <FileType className="w-12 h-12 text-slate-500" />
-               <div className="text-slate-400">
-                 <p className="font-medium">Kliknite pre výber zdrojových súborov</p>
-                 <p className="text-xs mt-1">Podporované: .txt, .json</p>
+               <div className="text-slate-400 text-center">
+                 <p className="font-medium text-lg">Vyberte zdrojové súbory na zlúčenie</p>
+                 <p className="text-xs mt-1">Podporované formáty: .txt, .json</p>
+               </div>
+               <div className="flex gap-4">
+                 <button 
+                   onClick={() => fileInputRef.current?.click()}
+                   className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded shadow transition-colors text-sm font-semibold"
+                 >
+                   Pridať súbory
+                 </button>
+                 <button 
+                   onClick={() => folderInputRef.current?.click()}
+                   className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded shadow transition-colors text-sm font-semibold"
+                 >
+                   Pridať priečinok (a podpriečinky)
+                 </button>
                </div>
             </div>
           ) : (
@@ -178,15 +218,18 @@ export const MergePanel: React.FC<MergePanelProps> = ({ addLog }) => {
               </div>
               
               <div className="max-h-60 overflow-y-auto pr-2 space-y-2 scrollbar-thin scrollbar-thumb-indigo-900 scrollbar-track-transparent">
-                {files.slice(0, 50).map((file, idx) => (
-                  <div key={idx} className="flex items-center justify-between bg-slate-900/50 p-2 rounded text-sm text-slate-300 border border-slate-700/50">
-                    <div className="flex items-center gap-2 truncate">
-                      <FileText className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                      <span className="truncate">{file.name}</span>
+                {files.slice(0, 50).map((file, idx) => {
+                  const displayPath = file.webkitRelativePath || file.name;
+                  return (
+                    <div key={idx} className="flex items-center justify-between bg-slate-900/50 p-2 rounded text-sm text-slate-300 border border-slate-700/50">
+                      <div className="flex items-center gap-2 truncate" title={displayPath}>
+                        <FileText className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                        <span className="truncate">{displayPath}</span>
+                      </div>
+                      <span className="text-xs text-slate-500 flex-shrink-0 ml-2">{formatFileSize(file.size)}</span>
                     </div>
-                    <span className="text-xs text-slate-500 flex-shrink-0 ml-2">{formatFileSize(file.size)}</span>
-                  </div>
-                ))}
+                  );
+                })}
                 {files.length > 50 && (
                   <div className="text-center text-xs text-slate-500 py-2 italic">
                     ...a {files.length - 50} ďalších súborov
@@ -194,11 +237,27 @@ export const MergePanel: React.FC<MergePanelProps> = ({ addLog }) => {
                 )}
               </div>
 
-              <div className="mt-4 flex justify-center">
-                 <span className="text-xs text-indigo-300 flex items-center gap-1 hover:text-white transition-colors">
-                   <RefreshCw className="w-3 h-3" />
-                   Kliknite pre zmenu výberu
-                 </span>
+              <div className="mt-6 flex justify-between items-center border-t border-slate-700/50 pt-4">
+                 <div className="flex gap-3">
+                   <button 
+                     onClick={() => fileInputRef.current?.click()}
+                     className="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 px-3 py-1.5 rounded transition-colors text-xs font-semibold"
+                   >
+                     + Pridať ďalšie súbory
+                   </button>
+                   <button 
+                     onClick={() => folderInputRef.current?.click()}
+                     className="bg-slate-800 hover:bg-slate-700 border border-indigo-500/30 text-indigo-300 px-3 py-1.5 rounded transition-colors text-xs font-semibold"
+                   >
+                     + Pridať priečinok
+                   </button>
+                 </div>
+                 <button 
+                   onClick={clearFiles}
+                   className="text-red-400 hover:text-red-300 text-xs font-semibold px-3 py-1.5 transition-colors flex items-center gap-1"
+                 >
+                   Vymazať všetko
+                 </button>
               </div>
             </div>
           )}

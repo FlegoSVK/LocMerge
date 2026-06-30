@@ -149,11 +149,16 @@ export const mergeFiles = async (
   if (encoding === 'JSON') {
     const masterJson: Record<string, string> = {};
     const fileMap: FileMap = [];
-    const sortedFiles = Array.from(files).sort((a, b) => a.name.localeCompare(b.name));
+    const sortedFiles = Array.from(files).sort((a, b) => {
+      const aPath = a.webkitRelativePath || a.name;
+      const bPath = b.webkitRelativePath || b.name;
+      return aPath.localeCompare(bPath);
+    });
 
     for (let i = 0; i < sortedFiles.length; i++) {
       const file = sortedFiles[i];
-      onProgress(i + 1, sortedFiles.length, file.name);
+      const filePath = file.webkitRelativePath || file.name;
+      onProgress(i + 1, sortedFiles.length, filePath);
 
       // Even if output is JSON, we read input files as UTF-8 by default unless specified otherwise
       // Here we assume input files are text files being merged into a JSON structure
@@ -173,13 +178,13 @@ export const mergeFiles = async (
         .filter(idx => idx !== -1);
 
       fileMap.push({
-        filename: file.name,
+        filename: filePath,
         lineCount: lines.length,
         originalHash: crcStr(cleanContent),
         emptyLineIndices
       });
 
-      masterJson[file.name] = cleanContent;
+      masterJson[filePath] = cleanContent;
     }
 
     const jsonString = JSON.stringify(masterJson, null, 2);
@@ -191,11 +196,16 @@ export const mergeFiles = async (
   // Handling Text-based output (Concatenated lines)
   const masterLines: string[] = [];
   const fileMap: FileMap = [];
-  const sortedFiles = Array.from(files).sort((a, b) => a.name.localeCompare(b.name));
+  const sortedFiles = Array.from(files).sort((a, b) => {
+    const aPath = a.webkitRelativePath || a.name;
+    const bPath = b.webkitRelativePath || b.name;
+    return aPath.localeCompare(bPath);
+  });
 
   for (let i = 0; i < sortedFiles.length; i++) {
     const file = sortedFiles[i];
-    onProgress(i + 1, sortedFiles.length, file.name);
+    const filePath = file.webkitRelativePath || file.name;
+    onProgress(i + 1, sortedFiles.length, filePath);
 
     // Read with selected encoding (assuming input matches output requirement)
     // If output is Windows-1250, we assume inputs are too, or we rely on the reader to handle simple bytes
@@ -218,7 +228,7 @@ export const mergeFiles = async (
       .filter(idx => idx !== -1);
     
     fileMap.push({
-      filename: file.name,
+      filename: filePath,
       lineCount: lines.length,
       originalHash: crcStr(cleanContent),
       emptyLineIndices
